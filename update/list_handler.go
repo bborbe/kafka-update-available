@@ -5,7 +5,7 @@
 package update
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
 
 	"github.com/bborbe/kafka-update-available/avro"
@@ -15,15 +15,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Handler struct {
+type ListHandler struct {
 	DB                  *bolt.DB
 	LatestBucketName    []byte
 	InstalledBucketName []byte
 }
 
-func (h *Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	resp.Header().Set("Content-Type", "text/plain")
-	resp.WriteHeader(http.StatusOK)
+func (h *ListHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	list := make([]map[string]string, 0)
 	err := h.DB.View(func(tx *bolt.Tx) error {
 		latestRegistry := LatestRegistry{
 			Tx:         tx,
@@ -39,12 +38,23 @@ func (h *Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 				return errors.Wrap(err, "get latest version failed")
 			}
 			if version.Version(installed.Version).Less(version.Version(latestVersion.Version)) {
-				fmt.Fprintf(resp, "%s at %s need update from %s to %s\n", installed.App, installed.Url, installed.Version, latestVersion.Version)
+				list = append(list, map[string]string{
+					"app":              installed.App,
+					"url":              installed.Url,
+					"installedVersion": installed.Version,
+					"latestVersion":    latestVersion.Version,
+				})
 			}
 			return nil
 		})
 	})
 	if err != nil {
 		glog.Warningf("read versions failed: %v", err)
+		http.Error(resp, "read versions failed", http.StatusInternalServerError)
+	}
+	resp.WriteHeader(http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(resp).Encode(list); err != nil {
+		glog.Warningf("encode json failed: %v", err)
 	}
 }

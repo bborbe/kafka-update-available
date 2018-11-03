@@ -74,7 +74,9 @@ func (a *App) Run(ctx context.Context) error {
 		go func() {
 			select {
 			case <-ctx.Done():
-				server.Shutdown(ctx)
+				if err := server.Shutdown(ctx); err != nil {
+					glog.Warningf("shutdown failed: %v", err)
+				}
 			}
 		}()
 		return server.ListenAndServe()
@@ -85,13 +87,20 @@ func (a *App) Run(ctx context.Context) error {
 
 func (a *App) createHttpHandler(db *bolt.DB) http.Handler {
 	router := mux.NewRouter()
+	router.HandleFunc("/healthz", a.check)
+	router.HandleFunc("/readiness", a.check)
 	router.Handle("/metrics", promhttp.Handler())
-	router.Handle("/", &Handler{
+	router.Handle("/updates", &ListHandler{
 		DB:                  db,
 		LatestBucketName:    []byte("version_latest"),
 		InstalledBucketName: []byte("version_installed"),
 	})
+	router.Handle("/", &IndexHandler{})
 	return router
+}
+
+func (a *App) check(resp http.ResponseWriter, req *http.Request) {
+	resp.WriteHeader(http.StatusOK)
 }
 
 func (a *App) createInstalledVersionsConsumer(db *bolt.DB) (*persistent.Consumer, error) {

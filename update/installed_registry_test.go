@@ -25,18 +25,17 @@ var _ = Describe("InstalledRegistry", func() {
 		filename = file.Name()
 		db, err = bolt.Open(filename, 0600, nil)
 		Expect(err).To(BeNil())
-
-		db.Update(func(tx *bolt.Tx) error {
-			tx.CreateBucket(bucketName)
-			return nil
+		err = db.Update(func(tx *bolt.Tx) error {
+			_, err := tx.CreateBucket(bucketName)
+			return err
 		})
-
+		Expect(err).To(BeNil())
 	})
 	AfterEach(func() {
-		os.Remove(filename)
+		_ = os.Remove(filename)
 	})
 	It("return error if not exits", func() {
-		db.View(func(tx *bolt.Tx) error {
+		err := db.View(func(tx *bolt.Tx) error {
 			registry := update.InstalledRegistry{
 				Tx:         tx,
 				BucketName: bucketName,
@@ -45,17 +44,18 @@ var _ = Describe("InstalledRegistry", func() {
 			Expect(err).NotTo(BeNil())
 			return nil
 		})
+		Expect(err).To(BeNil())
 	})
 	It("saves version", func() {
-		db.Update(func(tx *bolt.Tx) error {
+		err := db.Update(func(tx *bolt.Tx) error {
 			registry := update.InstalledRegistry{
 				Tx:         tx,
 				BucketName: bucketName,
 			}
-			registry.Set(avro.ApplicationVersionInstalled{App: "world", Version: "1.2.3", Url: "http://www.example.com"})
-			return nil
+			return registry.Set(avro.ApplicationVersionInstalled{App: "world", Version: "1.2.3", Url: "http://www.example.com"})
 		})
-		db.View(func(tx *bolt.Tx) error {
+		Expect(err).To(BeNil())
+		err = db.View(func(tx *bolt.Tx) error {
 			registry := update.InstalledRegistry{
 				Tx:         tx,
 				BucketName: bucketName,
@@ -67,5 +67,6 @@ var _ = Describe("InstalledRegistry", func() {
 			Expect(version.Url).To(Equal("http://www.example.com"))
 			return nil
 		})
+		Expect(err).To(BeNil())
 	})
 })

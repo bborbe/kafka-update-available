@@ -29,7 +29,7 @@ func main() {
 	flag.StringVar(&app.KafkaInstalledVersionTopic, "kafka-installed-version-topic", "", "kafka topic")
 	flag.StringVar(&app.KafkaSchemaRegistryUrl, "kafka-schema-registry-url", "", "kafka schema registry url")
 
-	flag.Set("logtostderr", "true")
+	_ = flag.Set("logtostderr", "true")
 	flag.Parse()
 
 	glog.V(0).Infof("Parameter Port: %d", app.Port)

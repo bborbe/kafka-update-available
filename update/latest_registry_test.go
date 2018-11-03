@@ -25,18 +25,17 @@ var _ = Describe("LatestRegistry", func() {
 		filename = file.Name()
 		db, err = bolt.Open(filename, 0600, nil)
 		Expect(err).To(BeNil())
-
-		db.Update(func(tx *bolt.Tx) error {
-			tx.CreateBucket(bucketName)
-			return nil
+		err = db.Update(func(tx *bolt.Tx) error {
+			_, err := tx.CreateBucket(bucketName)
+			return err
 		})
-
+		Expect(err).To(BeNil())
 	})
 	AfterEach(func() {
-		os.Remove(filename)
+		_ = os.Remove(filename)
 	})
 	It("return error if not exits", func() {
-		db.View(func(tx *bolt.Tx) error {
+		err := db.View(func(tx *bolt.Tx) error {
 			registry := update.LatestRegistry{
 				Tx:         tx,
 				BucketName: bucketName,
@@ -45,17 +44,18 @@ var _ = Describe("LatestRegistry", func() {
 			Expect(err).NotTo(BeNil())
 			return nil
 		})
+		Expect(err).To(BeNil())
 	})
 	It("saves version", func() {
-		db.Update(func(tx *bolt.Tx) error {
+		err := db.Update(func(tx *bolt.Tx) error {
 			registry := update.LatestRegistry{
 				Tx:         tx,
 				BucketName: bucketName,
 			}
-			registry.Set(avro.ApplicationVersionAvailable{App: "world", Version: "1.2.3"})
-			return nil
+			return registry.Set(avro.ApplicationVersionAvailable{App: "world", Version: "1.2.3"})
 		})
-		db.View(func(tx *bolt.Tx) error {
+		Expect(err).To(BeNil())
+		err = db.View(func(tx *bolt.Tx) error {
 			registry := update.LatestRegistry{
 				Tx:         tx,
 				BucketName: bucketName,
@@ -66,5 +66,6 @@ var _ = Describe("LatestRegistry", func() {
 			Expect(version.Version).To(Equal("1.2.3"))
 			return nil
 		})
+		Expect(err).To(BeNil())
 	})
 })
